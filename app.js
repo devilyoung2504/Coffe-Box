@@ -4,13 +4,13 @@ import { guardarSuscripcion, obtenerSuscripciones } from "./js/services/suscripc
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    // 1. Cargar catálogo
+    // Cargar catalogo
     const catalogo = await cargarCatalogo();
     estado.catalogo = catalogo;
 
     console.log("Catálogo cargado:", catalogo);
 
-    // 2. (PRUEBA) Crear una suscripción de ejemplo
+    // Suscripcion de ejemplo - borrar luego
     const suscripcionDemo = {
       planId: "standard",
       brands: [
