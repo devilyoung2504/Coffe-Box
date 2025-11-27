@@ -1,0 +1,328 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@300;400;600;700&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #000000;
+    color: #ffffff;
+    overflow-x: hidden;
+}
+
+.navbar-custom {
+    background-color: #000000;
+    padding: 1.5rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #ffffff !important;
+    font-weight: 700;
+    font-size: 1.3rem;
+    letter-spacing: 2px;
+}
+
+.logo-circle {
+    width: 50px;
+    height: 50px;
+    border: 3px solid #D4A574;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.logo-circle::before {
+    content: '☕';
+    font-size: 24px;
+}
+
+.navbar-nav .nav-link {
+    color: #ffffff !important;
+    margin: 0 1rem;
+    font-weight: 400;
+    transition: color 0.3s;
+    letter-spacing: 0.5px;
+}
+
+.navbar-nav .nav-link:hover {
+    color: #E6B325 !important;
+}
+
+.menu-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.menu-icon {
+    width: 30px;
+    height: 3px;
+    background-color: #E6B325;
+    position: relative;
+    transition: all 0.3s;
+}
+
+.menu-icon::before,
+.menu-icon::after {
+    content: '';
+    position: absolute;
+    width: 30px;
+    height: 3px;
+    background-color: #E6B325;
+    transition: all 0.3s;
+}
+
+.menu-icon::before {
+    top: -8px;
+}
+
+.menu-icon::after {
+    top: 8px;
+}
+
+.hero-section {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding: 4rem 0;
+}
+
+.hero-content {
+    z-index: 2;
+}
+
+.hero-subtitle {
+    font-size: 0.9rem;
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    color: #ffffff;
+    font-weight: 300;
+    margin-bottom: 1.5rem;
+    opacity: 0.9;
+}
+
+.hero-title {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 5.5rem;
+    font-weight: 700;
+    color: #E6B325;
+    line-height: 1;
+    margin-bottom: 2rem;
+    letter-spacing: 3px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.hero-description {
+    font-size: 1.1rem;
+    color: #ffffff;
+    margin-bottom: 3rem;
+    max-width: 600px;
+    line-height: 1.6;
+}
+
+.cta-button {
+    background-color: #E6B325;
+    color: #000000;
+    padding: 1rem 2.5rem;
+    border-radius: 50px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.3s;
+    border: none;
+    font-size: 1rem;
+    letter-spacing: 0.5px;
+}
+
+.cta-button:hover {
+    background-color: #D4A020;
+    transform: translateX(5px);
+    color: #000000;
+}
+
+.cta-arrow {
+    background-color: #000000;
+    color: #E6B325;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.features-bar {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    margin-top: 3rem;
+    flex-wrap: wrap;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #ffffff;
+    font-size: 0.9rem;
+}
+
+.feature-icon {
+    color: #E6B325;
+    font-size: 1.2rem;
+}
+
+.rating-stars {
+    color: #E6B325;
+    margin-left: 5px;
+}
+
+.coffee-image-container {
+    position: relative;
+    z-index: 1;
+}
+
+.coffee-cup {
+    width: 100%;
+    max-width: 700px;
+    filter: drop-shadow(0 20px 40px rgba(230, 179, 37, 0.3));
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-20px);
+    }
+}
+
+.coffee-bean {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background: radial-gradient(circle at 30% 30%, #8B4513, #5C2E0F);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    animation: rotateBeans 4s linear infinite;
+}
+
+.coffee-bean::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 60%;
+    background: #3E1F0A;
+}
+
+.bean-1 {
+    top: 10%;
+    right: 20%;
+    animation-delay: 0s;
+}
+
+.bean-2 {
+    top: 30%;
+    right: 5%;
+    animation-delay: 1s;
+}
+
+.bean-3 {
+    bottom: 40%;
+    right: 15%;
+    animation-delay: 2s;
+}
+
+@keyframes rotateBeans {
+    0% {
+        transform: rotate(0deg) translateY(0);
+    }
+    50% {
+        transform: rotate(180deg) translateY(-10px);
+    }
+    100% {
+        transform: rotate(360deg) translateY(0);
+    }
+}
+
+.yellow-circle {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, #E6B325 0%, transparent 70%);
+    border-radius: 50%;
+    top: 50%;
+    right: -10%;
+    transform: translateY(-50%);
+    z-index: 0;
+    opacity: 0.4;
+}
+
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 3.5rem;
+    }
+
+    .hero-subtitle {
+        font-size: 0.7rem;
+        letter-spacing: 4px;
+    }
+
+    .hero-description {
+        font-size: 1rem;
+    }
+
+    .coffee-cup {
+        max-width: 400px;
+        margin-top: 3rem;
+    }
+
+    .yellow-circle {
+        width: 400px;
+        height: 400px;
+    }
+
+    .features-bar {
+        gap: 1rem;
+    }
+
+    .feature-item {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .hero-title {
+        font-size: 2.5rem;
+    }
+
+    .navbar-brand {
+        font-size: 1rem;
+    }
+
+    .logo-circle {
+        width: 40px;
+        height: 40px;
+    }
+
+    .logo-circle::before {
+        font-size: 20px;
+    }
+}

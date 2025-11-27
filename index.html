@@ -1,11 +1,114 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Coffee Box - Café de Especialidad a tu Puerta</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <script type="module" src="./app.js"></script>
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <div class="logo-circle"></div>
+                COFFEE BOX
+            </a>
+            <button class="navbar-toggler menu-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <div class="menu-icon"></div>
+            </button>
+            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#home">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#beneficios">Beneficios</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#como-funciona">Cómo funciona</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#plan">Plan</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#suscribirse">Suscribirse</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero-section" id="home">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6 hero-content">
+                    <p class="hero-subtitle">RECIÉN TOSTADO, EN TU PUERTA CADA MES</p>
+                    <h1 class="hero-title">CAFÉ DE ESPECIALIDAD</h1>
+                    <p class="hero-description">
+                        Elige tu perfil de sabor y frecuencia. Nosotros tostamos bajo pedido y lo enviamos en 24-48 h."
+                    </p>
+                    <a href="#plan" class="cta-button">
+                        Empezar mi suscripción
+                        <span class="cta-arrow">→</span>
+                    </a>
+                    <div class="features-bar">
+                        <div class="feature-item">
+                            <i class="fas fa-pause-circle feature-icon"></i>
+                            <span>Pausa o cancela cuando quieras</span>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-shipping-fast feature-icon"></i>
+                            <span>Envío nacional</span>
+                        </div>
+                        <div class="feature-item">
+                            <span>+4,8<i class="fas fa-star rating-stars"></i> reseñas</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="coffee-image-container">
+                        <div class="yellow-circle"></div>
+                        <svg class="coffee-cup" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
+                            <ellipse cx="500" cy="650" rx="180" ry="30" fill="#E6B325" opacity="0.3"/>
+                            <path d="M 350 400 Q 340 550 380 630 L 620 630 Q 660 550 650 400 Z" fill="#E6B325"/>
+                            <ellipse cx="500" cy="400" rx="160" ry="40" fill="#F5C948"/>
+                            
+                            <path d="M 360 420 Q 350 500 370 560 L 630 560 Q 650 500 640 420 Z" fill="#3E1F0A"/>
+                            <ellipse cx="500" cy="420" rx="150" ry="35" fill="#5C2E0F"/>
+                            
+                            <path d="M 450 350 Q 430 320 440 280 Q 445 290 450 300 Q 460 270 470 260 Q 475 280 480 300 Q 490 250 505 240 Q 510 270 515 300 Q 530 260 545 255 Q 545 280 550 310 Q 565 280 575 290 Q 570 320 555 350 Z" fill="#3E1F0A">
+                                <animateTransform attributeName="transform" type="translate" values="0,0; 0,-5; 0,0" dur="2s" repeatCount="indefinite"/>
+                            </path>
+                            
+                            <path d="M 660 450 Q 720 450 730 500 Q 730 540 700 550 Q 670 555 660 540 L 665 530 Q 685 535 700 525 Q 710 510 705 490 Q 695 470 670 470 Z" fill="#E6B325"/>
+                            
+                            <g class="floating-beans">
+                                <ellipse cx="420" cy="200" rx="25" ry="30" fill="#8B4513" transform="rotate(-20 420 200)">
+                                    <animateTransform attributeName="transform" type="rotate" values="-20 420 200; 340 420 200; -20 420 200" dur="4s" repeatCount="indefinite"/>
+                                </ellipse>
+                                <line x1="420" y1="185" x2="420" y2="215" stroke="#3E1F0A" stroke-width="2"/>
+                                
+                                <ellipse cx="550" cy="180" rx="25" ry="30" fill="#8B4513" transform="rotate(45 550 180)">
+                                    <animateTransform attributeName="transform" type="rotate" values="45 550 180; 405 550 180; 45 550 180" dur="5s" repeatCount="indefinite"/>
+                                </ellipse>
+                                <line x1="550" y1="165" x2="550" y2="195" stroke="#3E1F0A" stroke-width="2"/>
+                                
+                                <ellipse cx="600" cy="280" rx="25" ry="30" fill="#8B4513" transform="rotate(-35 600 280)">
+                                    <animateTransform attributeName="transform" type="rotate" values="-35 600 280; 325 600 280; -35 600 280" dur="4.5s" repeatCount="indefinite"/>
+                                </ellipse>
+                                <line x1="600" y1="265" x2="600" y2="295" stroke="#3E1F0A" stroke-width="2"/>
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/main.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
