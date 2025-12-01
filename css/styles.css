@@ -1,0 +1,542 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@300;400;600;700&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #000000;
+    color: #ffffff;
+    overflow-x: hidden;
+}
+
+.navbar-custom {
+    background-color: #000000;
+    padding: 1.5rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #ffffff !important;
+    font-weight: 700;
+    font-size: 1.3rem;
+    letter-spacing: 2px;
+}
+
+.logo-circle {
+    width: 50px;
+    height: 50px;
+    border: 3px solid #D4A574;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.logo-circle::before {
+    content: '☕';
+    font-size: 24px;
+}
+
+.navbar-nav .nav-link {
+    color: #ffffff !important;
+    margin: 0 1rem;
+    font-weight: 400;
+    transition: color 0.3s;
+    letter-spacing: 0.5px;
+}
+
+.navbar-nav .nav-link:hover {
+    color: #E6B325 !important;
+}
+
+.menu-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.menu-icon {
+    width: 30px;
+    height: 3px;
+    background-color: #E6B325;
+    position: relative;
+    transition: all 0.3s;
+}
+
+.menu-icon::before,
+.menu-icon::after {
+    content: '';
+    position: absolute;
+    width: 30px;
+    height: 3px;
+    background-color: #E6B325;
+    transition: all 0.3s;
+}
+
+.menu-icon::before {
+    top: -8px;
+}
+
+.menu-icon::after {
+    top: 8px;
+}
+
+.hero-section {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding: 4rem 0;
+}
+
+.hero-content {
+    z-index: 2;
+}
+
+.hero-subtitle {
+    font-size: 0.9rem;
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    color: #ffffff;
+    font-weight: 300;
+    margin-bottom: 1.5rem;
+    opacity: 0.9;
+}
+
+.hero-title {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 5.5rem;
+    font-weight: 700;
+    color: #E6B325;
+    line-height: 1;
+    margin-bottom: 2rem;
+    letter-spacing: 3px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.hero-description {
+    font-size: 1.1rem;
+    color: #ffffff;
+    margin-bottom: 3rem;
+    max-width: 600px;
+    line-height: 1.6;
+}
+
+.cta-button {
+    background-color: #E6B325;
+    color: #000000;
+    padding: 1rem 2.5rem;
+    border-radius: 50px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.3s;
+    border: none;
+    font-size: 1rem;
+    letter-spacing: 0.5px;
+}
+
+.cta-button:hover {
+    background-color: #D4A020;
+    transform: translateX(5px);
+    color: #000000;
+}
+
+.cta-arrow {
+    background-color: #000000;
+    color: #E6B325;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.features-bar {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    margin-top: 3rem;
+    flex-wrap: wrap;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #ffffff;
+    font-size: 0.9rem;
+}
+
+.feature-icon {
+    color: #E6B325;
+    font-size: 1.2rem;
+}
+
+.rating-stars {
+    color: #E6B325;
+    margin-left: 5px;
+}
+
+.coffee-image-container {
+    position: relative;
+    z-index: 1;
+}
+
+.coffee-cup {
+    width: 100%;
+    max-width: 700px;
+    filter: drop-shadow(0 20px 40px rgba(230, 179, 37, 0.3));
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-20px);
+    }
+}
+
+.coffee-bean {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background: radial-gradient(circle at 30% 30%, #8B4513, #5C2E0F);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    animation: rotateBeans 4s linear infinite;
+}
+
+.coffee-bean::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 60%;
+    background: #3E1F0A;
+}
+
+.bean-1 {
+    top: 10%;
+    right: 20%;
+    animation-delay: 0s;
+}
+
+.bean-2 {
+    top: 30%;
+    right: 5%;
+    animation-delay: 1s;
+}
+
+.bean-3 {
+    bottom: 40%;
+    right: 15%;
+    animation-delay: 2s;
+}
+
+@keyframes rotateBeans {
+    0% {
+        transform: rotate(0deg) translateY(0);
+    }
+    50% {
+        transform: rotate(180deg) translateY(-10px);
+    }
+    100% {
+        transform: rotate(360deg) translateY(0);
+    }
+}
+
+.yellow-circle {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, #E6B325 0%, transparent 70%);
+    border-radius: 50%;
+    top: 50%;
+    right: -10%;
+    transform: translateY(-50%);
+    z-index: 0;
+    opacity: 0.4;
+}
+
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 3.5rem;
+    }
+
+    .hero-subtitle {
+        font-size: 0.7rem;
+        letter-spacing: 4px;
+    }
+
+    .hero-description {
+        font-size: 1rem;
+    }
+
+    .coffee-cup {
+        max-width: 400px;
+        margin-top: 3rem;
+    }
+
+    .yellow-circle {
+        width: 400px;
+        height: 400px;
+    }
+
+    .features-bar {
+        gap: 1rem;
+    }
+
+    .feature-item {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .hero-title {
+        font-size: 2.5rem;
+    }
+
+    .navbar-brand {
+        font-size: 1rem;
+    }
+
+    .logo-circle {
+        width: 40px;
+        height: 40px;
+    }
+
+    .logo-circle::before {
+        font-size: 20px;
+    }
+}
+
+
+.hero-beneficios {
+    padding: 80px 0;
+    background: #E6B325;
+}
+
+.beneficios-title {
+    font-size: 48px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #3E1F0A;
+}
+
+.beneficios-subtitle {
+    font-size: 18px;
+    color: #5a4735;
+}
+
+.benefits-section {
+    padding: 50px 0;
+}
+
+.benefit-card {
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: transform .2s;
+}
+
+.benefit-card:hover {
+    transform: translateY(-5px);
+}
+
+.benefit-icon {
+    font-size: 50px;
+    color: #c59d5f;
+    margin-bottom: 15px;
+}
+
+p {
+    color: #3E1F0A; 
+}
+
+
+.hero-como-funciona {
+    padding: 80px 0;
+    background: #E6B325;
+}
+
+.cf-title {
+    font-size: 45px;
+    font-weight: 700;
+    color: #3E1F0A;
+}
+
+.cf-subtitle {
+    font-size: 18px;
+    color: #6b5844;
+}
+
+.steps-section {
+    padding: 60px 0;
+}
+
+.step-card {
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: transform .2s;
+}
+
+.step-card:hover {
+    transform: translateY(-5px);
+}
+
+.step-number {
+    font-size: 40px;
+    font-weight: 800;
+    color: #c59d5f;
+    display: block;
+}
+
+.step-icon {
+    font-size: 55px;
+    margin: 15px 0;
+    color: #3E1F0A;
+}
+
+
+.hero-planes {
+    padding: 80px 0;
+    background: #E6B325;
+}
+
+.planes-title {
+    font-size: 45px;
+    font-weight: 700;
+    color: #3E1F0A;
+}
+
+.planes-subtitle {
+    font-size: 18px;
+    color: #6b5844;
+}
+
+.plans-section {
+    padding: 60px 0;
+}
+
+.plan-card {
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    text-align: center;
+    transition: transform .2s, box-shadow .2s;
+}
+
+.plan-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+}
+
+.featured {
+    border: 2px solid #c59d5f;
+}
+
+.plan-price {
+    font-size: 28px;
+    font-weight: bold;
+    color: #c59d5f;
+}
+
+.plan-list {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+
+.plan-list li {
+    margin: 10px 0;
+    color: #3E1F0A;
+}
+
+.plan-button {
+    display: inline-block;
+    padding: 12px 24px;
+    border-radius: 8px;
+    background: #3E1F0A;
+    color: white;
+    text-decoration: none;
+    margin-top: 10px;
+    font-weight: 600;
+}
+
+
+.navbar-custom .nav-link {
+    color: white !important;
+    font-weight: 500;
+    text-decoration: none !important;
+}
+
+.navbar-custom .nav-link:hover {
+    color: #c59d5f !important; /* dorado suave */
+}
+
+.navbar-custom .nav-link.active {
+    color: #c59d5f !important;
+    text-decoration: none !important;
+}
+
+
+.hero-suscribirse {
+    padding: 80px 0;
+    background: #E6B325;
+}
+
+.sus-title {
+    font-size: 45px;
+    font-weight: 700;
+    color: #3E1F0A;
+}
+
+.sus-subtitle {
+    font-size: 18px;
+    color: #6b5844;
+}
+
+.sus-form-section {
+    padding: 60px 0;
+}
+
+.sus-form {
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.sus-btn {
+    background: #3E1F0A;
+    color: white;
+    padding: 12px 25px;
+    border-radius: 8px;
+    font-weight: 600;
+    border: none;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
