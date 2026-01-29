@@ -3,120 +3,26 @@ import argparse
 import json
 import os
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Any, Optional
 
 import requests
 
 API = "https://api.github.com"
 DEFAULT_MARKER = "<!-- qualityrisk-report -->"
 
+SEV_ORDER = {"BLOCKER": 0, "CRITICAL": 1, "MAJOR": 2, "MINOR": 3, "INFO": 4, "UNKNOWN": 9}
+
+
 def load_json(path: str) -> dict:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+
 def extract_path(component: str) -> str:
     return component.split(":", 1)[1] if ":" in component else component
 
-def severity_counts(issues: list[dict]) -> dict:
-    counts = {}
-    for it in issues or []:
-        sev = (it.get("severity") or "UNKNOWN").upper()
-        counts[sev] = counts.get(sev, 0) + 1
-    return counts
-
-def build_markdown(evidence: dict, marker: str) -> str:
-    meta = evidence.get("meta") or {}
-    delta = evidence.get("delta") or {}
-    tests = evidence.get("tests") or {}
-    sonar = evidence.get("sonar") or {}
-    risk  = evidence.get("risk") or {}
-    policy = evidence.get("policy") or {}
-
-    # Headline signals
-    decision = (policy.get("decision") or "PASS").upper()
-    policy_set = policy.get("policy_set") or "unknown"
-    mode = (policy.get("mode") or "advisory").lower()
-
-    risk_value = int(risk.get("value", 0) or 0)
-    risk_level = (risk.get("level") or "LOW").upper()
-    reasons = risk.get("reasons") or []
-
-    qg = (sonar.get("qualityGate") or {}).get("status") or "NONE"
-    qg = str(qg).upper()
-
-    # Delta stats
-    stats = delta.get("stats") or {}
-    files_changed = int(stats.get("files_changed", 0) or 0)
-    additions = int(stats.get("additions", 0) or 0)
-    deletions = int(stats.get("deletions", 0) or 0)
-    churn = int(stats.get("churn_lines", 0) or 0)
-
-    # Tests
-    tests_present = bool(tests.get("tests_present", False))
-    tests_passed = bool(tests.get("tests_passed", False))
-    exit_code = int(tests.get("exit_code", 0) or 0)
-    duration_ms = int(tests.get("duration_ms", 0) or 0)
-
-    # Sonar delta issues
-    delta_issues = sonar.get("issues_filtered_by_delta")
-    if delta_issues is None:
-        delta_issues = sonar.get("issues", []) or []
-    counts = severity_counts(delta_issues)
-
-    # Policy violations
-    violations = policy.get("violations") or []
-
-    # Top issues (max 5)
-    top = []
-    for it in (delta_issues or [])[:5]:
-        path = extract_path(it.get("component", ""))
-        line = it.get("line")
-        tr = it.get("textRange") or {}
-        if line is None:
-            line = tr.get("startLine")
-        sev = (it.get("severity") or "").upper()
-        msg = (it.get("message") or "").strip()
-        rule = it.get("rule") or ""
-        loc = f"{path}:{line}" if line else path
-        top.append(f"- **{sev}** `{loc}` — {msg} _(rule: `{rule}`)_")
-
-    # Markdown
-    generated = datetime.now(timezone.utc).isoformat()
-    pr = meta.get("pull_request")
-    repo = meta.get("repo")
-
-    lines = []
-    lines.append(f"## QualityRisk — `{policy_set}` ({mode})")
-    lines.append("")
-    lines.append(f"**Decision:** `{decision}`  |  **Risk:** `{risk_value}` (`{risk_level}`)  |  **Quality Gate:** `{qg}`")
-    lines.append("")
-    lines.append("### Summary")
-    lines.append(f"- Repo/PR: `{repo}` / `#{pr}`")
-    lines.append(f"- Delta: **{files_changed} files**, **+{additions}/-{deletions}**, churn **{churn}**")
-    lines.append(f"- Tests: present=`{tests_present}`, passed=`{tests_passed}`, exit_code=`{exit_code}`, duration_ms=`{duration_ms}`")
-    lines.append(f"- Sonar (delta issues): " + ", ".join([f"`{k}={v}`" for k, v in sorted(counts.items())]) if counts else "- Sonar (delta issues): `none`")
-    lines.append("")
-    lines.append("### Risk reasons")
-    if reasons:
-        for r in reasons:
-            lines.append(f"- {r}")
-    else:
-        lines.append("- (no reasons)")
-    lines.append("")
-    lines.append("### Policy violations")
-    if violations:
-        for v in violations:
-            lines.append(f"- **{v.get('status')}** `{v.get('rule_id')}` — {v.get('reason')}")
-    else:
-        lines.append("- (none)")
-    lines.append("")
-    if top:
-        lines.append("### Top Sonar issues in delta")
-        lines.extend(top)
-        lines.append("")
-    lines.append(f"_generated_at: `{generated}`_")
-    lines.append(marker)
-    return "\n".join(lines)
 
 def gh_headers(token: str) -> dict:
     return {
@@ -126,7 +32,206 @@ def gh_headers(token: str) -> dict:
         "User-Agent": "qualityrisk-pr-comment",
     }
 
-def find_existing_comment(repo: str, pr: int, token: str, marker: str) -> int | None:
+
+def severity_counts(issues: list[dict]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for it in issues or []:
+        sev = (it.get("severity") or "UNKNOWN").upper()
+        counts[sev] = counts.get(sev, 0) + 1
+    return counts
+
+
+def pick_delta_issues(evidence: dict) -> list[dict]:
+    sonar = evidence.get("sonar") or {}
+    delta_issues = sonar.get("issues_filtered_by_delta")
+    if delta_issues is None:
+        delta_issues = sonar.get("issues", []) or []
+    return delta_issues or []
+
+
+def issue_loc(issue: dict) -> str:
+    path = extract_path(issue.get("component", ""))
+    line = issue.get("line")
+    if line is None:
+        tr = issue.get("textRange") or {}
+        line = tr.get("startLine")
+    return f"{path}:{line}" if line else path
+
+
+def sort_issues(issues: list[dict]) -> list[dict]:
+    def key(it: dict):
+        sev = (it.get("severity") or "UNKNOWN").upper()
+        return (SEV_ORDER.get(sev, 9), str(it.get("rule") or ""), issue_loc(it))
+
+    return sorted(issues or [], key=key)
+
+
+def format_counts_md(counts: dict[str, int]) -> str:
+    if not counts:
+        return "- Sonar (delta issues): `none`"
+    parts = [f"`{k}={v}`" for k, v in sorted(counts.items())]
+    return "- Sonar (delta issues): " + ", ".join(parts)
+
+
+def format_list_md(title: str, items: list[str], empty_msg: str) -> list[str]:
+    lines = [f"### {title}"]
+    if items:
+        lines.extend([f"- {x}" for x in items])
+    else:
+        lines.append(f"- {empty_msg}")
+    lines.append("")
+    return lines
+
+
+def format_violations_md(violations: list[dict]) -> list[str]:
+    lines = ["### Policy violations"]
+    if not violations:
+        lines.append("- (none)")
+        lines.append("")
+        return lines
+
+    for v in violations:
+        status = v.get("status") or "WARN"
+        rule_id = v.get("rule_id") or "unknown"
+        reason = v.get("reason") or ""
+        lines.append(f"- **{status}** `{rule_id}` — {reason}")
+    lines.append("")
+    return lines
+
+
+def format_top_issues_md(delta_issues: list[dict], limit: int = 5) -> list[str]:
+    if not delta_issues:
+        return []
+
+    top_lines = ["### Top Sonar issues in delta"]
+    for it in sort_issues(delta_issues)[:limit]:
+        sev = (it.get("severity") or "UNKNOWN").upper()
+        loc = issue_loc(it)
+        msg = (it.get("message") or "").strip()
+        rule = it.get("rule") or ""
+        top_lines.append(f"- **{sev}** `{loc}` — {msg} _(rule: `{rule}`)_")
+    top_lines.append("")
+    return top_lines
+
+
+@dataclass
+class Signals:
+    repo: str
+    pr: Any
+    policy_set: str
+    mode: str
+    decision: str
+    risk_value: int
+    risk_level: str
+    risk_reasons: list[str]
+    qg: str
+    files_changed: int
+    additions: int
+    deletions: int
+    churn: int
+    tests_present: bool
+    tests_passed: bool
+    exit_code: int
+    duration_ms: int
+    counts: dict[str, int]
+    violations: list[dict]
+    delta_issues: list[dict]
+    generated_at: str
+
+
+def extract_signals(evidence: dict) -> Signals:
+    meta = evidence.get("meta") or {}
+    delta = evidence.get("delta") or {}
+    tests = evidence.get("tests") or {}
+    sonar = evidence.get("sonar") or {}
+    risk = evidence.get("risk") or {}
+    policy = evidence.get("policy") or {}
+
+    decision = (policy.get("decision") or "PASS").upper()
+    policy_set = policy.get("policy_set") or "unknown"
+    mode = (policy.get("mode") or "advisory").lower()
+
+    qg = (sonar.get("qualityGate") or {}).get("status") or "NONE"
+    qg = str(qg).upper()
+
+    stats = delta.get("stats") or {}
+    files_changed = int(stats.get("files_changed", 0) or 0)
+    additions = int(stats.get("additions", 0) or 0)
+    deletions = int(stats.get("deletions", 0) or 0)
+    churn = int(stats.get("churn_lines", 0) or 0)
+
+    tests_present = bool(tests.get("tests_present", False))
+    tests_passed = bool(tests.get("tests_passed", False))
+    exit_code = int(tests.get("exit_code", 0) or 0)
+    duration_ms = int(tests.get("duration_ms", 0) or 0)
+
+    delta_issues = pick_delta_issues(evidence)
+    counts = severity_counts(delta_issues)
+    violations = policy.get("violations") or []
+
+    risk_value = int(risk.get("value", 0) or 0)
+    risk_level = (risk.get("level") or "LOW").upper()
+    risk_reasons = risk.get("reasons") or []
+
+    return Signals(
+        repo=str(meta.get("repo") or ""),
+        pr=meta.get("pull_request"),
+        policy_set=str(policy_set),
+        mode=str(mode),
+        decision=str(decision),
+        risk_value=risk_value,
+        risk_level=str(risk_level),
+        risk_reasons=list(risk_reasons),
+        qg=str(qg),
+        files_changed=files_changed,
+        additions=additions,
+        deletions=deletions,
+        churn=churn,
+        tests_present=tests_present,
+        tests_passed=tests_passed,
+        exit_code=exit_code,
+        duration_ms=duration_ms,
+        counts=counts,
+        violations=violations,
+        delta_issues=delta_issues,
+        generated_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+def build_markdown(evidence: dict, marker: str) -> str:
+    s = extract_signals(evidence)
+
+    lines: list[str] = []
+    lines.append(f"## QualityRisk — `{s.policy_set}` ({s.mode})")
+    lines.append("")
+    lines.append(
+        f"**Decision:** `{s.decision}`  |  **Risk:** `{s.risk_value}` (`{s.risk_level}`)  |  **Quality Gate:** `{s.qg}`"
+    )
+    lines.append("")
+    lines.append("### Summary")
+    lines.append(f"- Repo/PR: `{s.repo}` / `#{s.pr}`")
+    lines.append(f"- Delta: **{s.files_changed} files**, **+{s.additions}/-{s.deletions}**, churn **{s.churn}**")
+    lines.append(
+        f"- Tests: present=`{s.tests_present}`, passed=`{s.tests_passed}`, exit_code=`{s.exit_code}`, duration_ms=`{s.duration_ms}`"
+    )
+    lines.append(format_counts_md(s.counts))
+    lines.append("")
+
+    # Risk reasons
+    lines.extend(format_list_md("Risk reasons", s.risk_reasons, "(no reasons)"))
+
+    # Policy violations
+    lines.extend(format_violations_md(s.violations))
+
+    # Top sonar issues
+    lines.extend(format_top_issues_md(s.delta_issues, limit=5))
+
+    lines.append(f"_generated_at: `{s.generated_at}`_")
+    lines.append(marker)
+    return "\n".join(lines)
+
+
+def find_existing_comment(repo: str, pr: int, token: str, marker: str) -> Optional[int]:
     url = f"{API}/repos/{repo}/issues/{pr}/comments"
     headers = gh_headers(token)
 
@@ -145,6 +250,7 @@ def find_existing_comment(repo: str, pr: int, token: str, marker: str) -> int | 
             return None
         page += 1
 
+
 def upsert_comment(repo: str, pr: int, token: str, body: str, marker: str) -> None:
     headers = gh_headers(token)
     existing_id = find_existing_comment(repo, pr, token, marker)
@@ -160,6 +266,7 @@ def upsert_comment(repo: str, pr: int, token: str, body: str, marker: str) -> No
     r = requests.post(url, headers=headers, json={"body": body}, timeout=15)
     r.raise_for_status()
     print("Created QualityRisk PR comment")
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -178,7 +285,6 @@ def main():
         with open(args.out_md, "w", encoding="utf-8") as f:
             f.write(md)
 
-    # Always print a short line for logs
     print("Rendered QualityRisk report markdown.")
 
     if args.dry_run:
@@ -194,6 +300,7 @@ def main():
     except requests.HTTPError as e:
         # Best-effort: don't break pipeline if comment fails
         print(f"Failed to post PR comment: {e}", file=sys.stderr)
+
 
 if __name__ == "__main__":
     main()

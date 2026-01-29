@@ -2,166 +2,187 @@
 import argparse
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 
-SEVERITY_POINTS = {
-    "BLOCKER": 30,
-    "CRITICAL": 20,
-    "MAJOR": 8,
-    "MINOR": 2,
-    "INFO": 1,
-}
+try:
+    import yaml  # PyYAML
+except Exception:
+    yaml = None
 
-SEVERITY_CAP = {
-    "BLOCKER": 60,
-    "CRITICAL": 60,
-    "MAJOR": 40,
-    "MINOR": 10,
-    "INFO": 5,
-}
-
-def load(path: str):
-    with open(path, "r", encoding="utf-8") as f:
+def load_json(p: str):
+    with open(p, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def clamp(v: int, lo: int = 0, hi: int = 100) -> int:
-    return max(lo, min(hi, v))
+def load_yaml(p: str):
+    if not p:
+        return None
+    if yaml is None:
+        raise SystemExit("Missing dependency: pyyaml (pip install pyyaml)")
+    with open(p, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
 
-def level_for(score: int) -> str:
-    # Ajustable a gusto
-    if score >= 80:
-        return "CRITICAL"
-    if score >= 55:
-        return "HIGH"
-    if score >= 30:
-        return "MEDIUM"
-    return "LOW"
+def clamp(x: int, lo: int, hi: int) -> int:
+    return max(lo, min(hi, x))
 
-def count_by_severity(issues: list[dict]) -> dict[str, int]:
-    out = {"BLOCKER": 0, "CRITICAL": 0, "MAJOR": 0, "MINOR": 0, "INFO": 0}
+def get_delta_stats(delta: dict) -> dict:
+    stats = (delta.get("stats") or {}) if isinstance(delta, dict) else {}
+    add = int(stats.get("additions", 0) or 0)
+    dele = int(stats.get("deletions", 0) or 0)
+    churn = stats.get("churn_lines", None)
+    if churn is None:
+        churn = add + dele
+    churn = int(churn or 0)
+    files_changed = int(stats.get("files_changed", 0) or 0)
+    return {"additions": add, "deletions": dele, "churn_lines": churn, "files_changed": files_changed}
+
+def get_tests_signals(tests: dict) -> dict:
+    # robusto: si faltan campos, intenta inferir
+    exit_code = int(tests.get("exit_code", 0) or 0)
+    duration_ms = int(tests.get("duration_ms", 0) or 0)
+
+    tests_present = tests.get("tests_present", None)
+    if tests_present is None:
+        stderr = (tests.get("stderr") or "")
+        tests_present = False if "tests skipped" in stderr.lower() else False
+    tests_present = bool(tests_present)
+
+    tests_passed = tests.get("tests_passed", None)
+    if tests_passed is None:
+        tests_passed = (exit_code == 0) and tests_present
+    tests_passed = bool(tests_passed)
+
+    return {"tests_present": tests_present, "tests_passed": tests_passed, "exit_code": exit_code, "duration_ms": duration_ms}
+
+def get_sonar_signals(sonar: dict) -> dict:
+    qg = (sonar.get("qualityGate") or {})
+    qg_status = str(qg.get("status") or "NONE").upper()
+
+    issues = sonar.get("issues_filtered_by_delta")
+    if issues is None:
+        issues = sonar.get("issues", []) or []
+
+    sev_counts = {}
     for it in issues or []:
-        sev = (it.get("severity") or "").upper()
-        if sev in out:
-            out[sev] += 1
-    return out
+        sev = str(it.get("severity") or "UNKNOWN").upper()
+        sev_counts[sev] = sev_counts.get(sev, 0) + 1
 
-def add_breakdown(breakdown: list, reasons: list, rule_id: str, points: int, reason: str):
-    if points <= 0:
-        return 0
-    breakdown.append({"rule_id": rule_id, "points": points, "reason": reason})
-    reasons.append(reason)
-    return points
+    return {"qg_status": qg_status, "sev_counts": sev_counts, "issues_in_delta": issues}
+
+def infer_scope_from_policy(policy: dict | None) -> str:
+    if not policy:
+        return "unknown"
+    meta = policy.get("meta") or {}
+    scope = meta.get("scope") or policy.get("scope")
+    return str(scope or "unknown").lower()
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--delta", required=True)
     ap.add_argument("--tests", required=True)
     ap.add_argument("--sonar", required=True)
+    ap.add_argument("--policy", default=None, help="Optional policy YAML to infer scope/profile")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
-    delta = load(args.delta)
-    tests = load(args.tests)
-    sonar = load(args.sonar)
+    delta = load_json(args.delta)
+    tests = load_json(args.tests)
+    sonar = load_json(args.sonar)
+    policy = load_yaml(args.policy) if args.policy else None
 
-    breakdown = []
-    reasons = []
+    scope = infer_scope_from_policy(policy)
+    if scope == "unknown":
+        # fallback simple
+        files = [f.get("path","") for f in (delta.get("files") or [])]
+        files = [p for p in files if p]
+        if files and all(p.startswith("qualityrisk/") or p == ".github/workflows/qualityrisk.yml" for p in files):
+            scope = "tooling"
+        else:
+            scope = "web-static"
+
+    is_tooling = (scope == "tooling")
+    profile = "tooling-bootstrap" if is_tooling else "web-static-bootstrap"
+
+    d = get_delta_stats(delta)
+    t = get_tests_signals(tests)
+    s = get_sonar_signals(sonar)
+
     score = 0
+    reasons = []
+    breakdown = {}
 
-    # ---- Delta signals
-    stats = (delta or {}).get("stats", {}) or {}
-    churn = int(stats.get("churn_lines", 0) or 0)
-    files_changed = int(stats.get("files_changed", 0) or 0)
-    additions = int(stats.get("additions", 0) or stats.get("total_additions", 0) or 0)
-    deletions = int(stats.get("deletions", 0) or stats.get("total_deletions", 0) or 0)
+    def add(points: int, reason: str, key: str):
+        nonlocal score
+        if points <= 0:
+            return
+        score += points
+        breakdown[key] = breakdown.get(key, 0) + points
+        reasons.append(reason)
 
-    if churn > 500:
-        score += add_breakdown(breakdown, reasons, "delta.churn", 20, f"High code churn ({churn} lines)")
-    elif churn > 200:
-        score += add_breakdown(breakdown, reasons, "delta.churn", 12, f"Moderate-high churn ({churn} lines)")
-    elif churn > 80:
-        score += add_breakdown(breakdown, reasons, "delta.churn", 6, f"Moderate churn ({churn} lines)")
+    # --- churn
+    churn = d["churn_lines"]
+    if churn >= 800:
+        add(35 if not is_tooling else 25, f"High churn ({churn} lines)", "churn")
+    elif churn >= 250:
+        add(20 if not is_tooling else 12, f"Moderate-high churn ({churn} lines)", "churn")
+    elif churn >= 100:
+        add(10 if not is_tooling else 6, f"Moderate churn ({churn} lines)", "churn")
 
-    if files_changed > 30:
-        score += add_breakdown(breakdown, reasons, "delta.files_changed", 10, f"Many files changed ({files_changed})")
-    elif files_changed > 15:
-        score += add_breakdown(breakdown, reasons, "delta.files_changed", 6, f"Several files changed ({files_changed})")
-    elif files_changed > 5:
-        score += add_breakdown(breakdown, reasons, "delta.files_changed", 3, f"Multiple files changed ({files_changed})")
+    # --- tests
+    if not t["tests_present"]:
+        add(25 if not is_tooling else 8, "No tests executed", "tests")
+    elif not t["tests_passed"]:
+        add(25 if not is_tooling else 12, "Tests failed", "tests")
 
-    # ---- Tests signals
-    tests_present = bool((tests or {}).get("tests_present", False))
-    tests_passed = bool((tests or {}).get("tests_passed", False))
-    exit_code = int((tests or {}).get("exit_code", 0) or 0)
+    # --- quality gate
+    if s["qg_status"] in ("ERROR", "FAIL"):
+        add(25 if not is_tooling else 8, "Quality Gate failed", "quality_gate")
 
-    if not tests_present:
-        score += add_breakdown(breakdown, reasons, "tests.present", 30, "No tests executed")
-    elif not tests_passed or exit_code != 0:
-        score += add_breakdown(breakdown, reasons, "tests.passed", 40, "Tests failed")
+    # --- sonar issues in delta (severity-based)
+    sev = s["sev_counts"]
+    blockers = int(sev.get("BLOCKER", 0) or 0)
+    criticals = int(sev.get("CRITICAL", 0) or 0)
+    majors = int(sev.get("MAJOR", 0) or 0)
 
-    # ---- Sonar signals
-    qg = (sonar or {}).get("qualityGate", {}) or {}
-    qg_status = (qg.get("status") or "NONE").upper()
+    if blockers:
+        add(min(60, 40 * blockers), f"Sonar BLOCKER issues in delta: {blockers}", "sonar_blocker")
+    if criticals:
+        add(min(50, (25 if not is_tooling else 15) * criticals), f"Sonar CRITICAL issues in delta: {criticals}", "sonar_critical")
+    if majors:
+        add(min(30, 10 * majors), f"Sonar MAJOR issues in delta: {majors}", "sonar_major")
 
-    if qg_status == "ERROR":
-        score += add_breakdown(breakdown, reasons, "sonar.quality_gate", 35, "Quality Gate failed")
-    elif qg_status == "NONE":
-        score += add_breakdown(breakdown, reasons, "sonar.quality_gate", 15, "Quality Gate not ready (NONE)")
-    # OK => 0
+    score = clamp(int(score), 0, 100)
 
-    # Prefer issues already filtered by delta (tu sonar_fetch.py los produce)
-    delta_issues = (sonar or {}).get("issues_filtered_by_delta")
-    if delta_issues is None:
-        delta_issues = (sonar or {}).get("issues", []) or []
+    if score >= 90:
+        level = "CRITICAL"
+    elif score >= 70:
+        level = "HIGH"
+    elif score >= 40:
+        level = "MEDIUM"
+    else:
+        level = "LOW"
 
-    sev_counts = count_by_severity(delta_issues)
-
-    # Score by severity with caps (determinístico y audit)
-    for sev, cnt in sev_counts.items():
-        if cnt <= 0:
-            continue
-        points = min(cnt * SEVERITY_POINTS[sev], SEVERITY_CAP[sev])
-        score += add_breakdown(
-            breakdown, reasons,
-            f"sonar.issues.{sev.lower()}",
-            points,
-            f"Sonar {sev} issues in delta: {cnt}"
-        )
-
-    score = clamp(score)
-    level = level_for(score)
-
-    payload = {
+    out = {
         "meta": {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "tool": "qualityrisk.risk_score",
-            "version": "1.0.0",
+            "version": "2.0.0",
+            "scope": scope,
+            "profile": profile,
         },
         "value": score,
         "level": level,
         "reasons": reasons,
-        "signals": {
-            "delta": {
-                "files_changed": files_changed,
-                "additions": additions,
-                "deletions": deletions,
-                "churn_lines": churn,
-            },
-            "tests": {
-                "tests_present": tests_present,
-                "tests_passed": tests_passed,
-                "exit_code": exit_code,
-            },
-            "sonar": {
-                "quality_gate_status": qg_status,
-                "delta_issue_counts": sev_counts,
-                "delta_issue_total": len(delta_issues or []),
-            },
-        },
         "breakdown": breakdown,
+        "signals": {
+            "delta": d,
+            "tests": t,
+            "sonar": {"quality_gate": s["qg_status"], "sev_counts": sev},
+        },
     }
 
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, ensure_ascii=False)
+        json.dump(out, f, indent=2, ensure_ascii=False)
 
 if __name__ == "__main__":
     main()
