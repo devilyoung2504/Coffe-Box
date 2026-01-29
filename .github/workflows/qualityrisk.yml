@@ -3,17 +3,11 @@ name: QualityRisk (Delta + Tests + Sonar Evidence)
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - "qualityrisk/**"
-      - ".github/workflows/qualityrisk.yml"
-      - "**/*.html"
-      - "**/*.css"
-      - "**/*.js"
-
 
 permissions:
   contents: read
   pull-requests: read
+  issues: write
 
 jobs:
   qualityrisk:
@@ -100,9 +94,10 @@ jobs:
             --out qualityrisk/out/delta.json
 
       # -----------------------
-      # Sonar (modo advisory)
+      # Sonar (solo PRs no-fork)
       # -----------------------
       - name: SonarCloud scan
+        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         continue-on-error: true
         uses: SonarSource/sonarqube-scan-action@v7
         env:
@@ -115,6 +110,7 @@ jobs:
             -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**,**/.venv/**,**/.tox/**,**/docs/**,**/sql/**,**/qualityrisk/out/**
 
       - name: Fetch Sonar JSON (filtered by delta)
+        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
@@ -124,6 +120,31 @@ jobs:
             --pr "${{ github.event.pull_request.number }}" \
             --delta qualityrisk/out/delta.json \
             --out qualityrisk/out/sonar.json
+
+      # Si no hay Sonar (fork), escribe sonar.json mínimo
+      - name: Ensure sonar.json exists (when Sonar skipped)
+        if: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          mkdir -p qualityrisk/out
+          python - << 'PY'
+          import json, pathlib, time
+          p = pathlib.Path("qualityrisk/out/sonar.json")
+          p.write_text(json.dumps({
+            "meta": {
+              "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+              "tool": "qualityrisk.sonar_fetch",
+              "version": "stub"
+            },
+            "projectKey": "unknown",
+            "pullRequest": "unknown",
+            "qualityGate": {"status": "NONE"},
+            "issues": [],
+            "issues_count": 0,
+            "issues_filtered_by_delta": [],
+            "issues_filtered_count": 0,
+            "filter_stats": None
+          }, indent=2), encoding="utf-8")
+          PY
 
       # -----------------------
       # Risk Score
@@ -183,6 +204,32 @@ jobs:
             --risk qualityrisk/out/risk_score.json \
             --policy-result qualityrisk/out/policy_result.json \
             --out qualityrisk/out/evidence_pack.json
+
+      # -----------------------
+      # PR report (summary + comment)
+      # -----------------------
+      - name: Render QualityRisk report (markdown)
+        run: |
+          python qualityrisk/scripts/pr_comment.py \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --evidence qualityrisk/out/evidence_pack.json \
+            --out-md qualityrisk/out/qualityrisk_report.md \
+            --dry-run
+
+      - name: Publish report to job summary
+        run: |
+          cat qualityrisk/out/qualityrisk_report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Post/Update PR comment (QualityRisk)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python qualityrisk/scripts/pr_comment.py \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --evidence qualityrisk/out/evidence_pack.json \
+            --out-md qualityrisk/out/qualityrisk_report.md
 
       # -----------------------
       # Upload artifacts
