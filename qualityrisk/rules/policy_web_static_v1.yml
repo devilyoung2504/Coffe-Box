@@ -1,0 +1,43 @@
+version: 1
+policy_set: web-static-bootstrap-v1
+mode: advisory
+
+meta:
+  scope: web-static
+  intent: bootstrap
+  description: "Bootstrap policy: warn on missing tests/QG; block only on severe issues in delta."
+
+rules:
+  - id: block_on_critical_or_blocker_in_delta
+    type: sonar.delta_issues_severity_count
+    severities: [BLOCKER, CRITICAL]
+    max: 0
+    on_fail: BLOCK
+
+  - id: warn_on_quality_gate_error
+    type: sonar.quality_gate_status
+    expect: OK
+    on_fail: WARN
+
+  - id: warn_if_no_tests_executed
+    type: tests.tests_present
+    expect: true
+    on_fail: WARN
+
+  - id: warn_on_many_files_changed
+    type: delta.files_changed
+    warn_gte: 10
+    block_gte: 30
+    on_fail: WARN
+
+  - id: warn_on_high_churn
+    type: delta.churn_lines
+    warn_gte: 400
+    block_gte: 1200
+    on_fail: WARN
+
+  - id: warn_on_high_risk_score
+    type: risk.value
+    warn_gte: 70
+    block_gte: 101
+    on_fail: WARN

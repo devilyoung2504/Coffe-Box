@@ -17,6 +17,7 @@ def main():
     ap.add_argument("--tests", required=True)
     ap.add_argument("--risk", required=False)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--policy-result", required=False)
     args = ap.parse_args()
 
     payload = {
@@ -35,6 +36,9 @@ def main():
 
     if args.risk:
         payload["risk"] = load(args.risk)
+
+    if args.policy_result:
+        payload["policy"] = load(args.policy_result)    
 
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, ensure_ascii=False)

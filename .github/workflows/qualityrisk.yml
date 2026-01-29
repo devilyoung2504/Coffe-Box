@@ -117,6 +117,9 @@ jobs:
             --delta qualityrisk/out/delta.json \
             --out qualityrisk/out/sonar.json
 
+      # -----------------------
+      # Risk Score
+      # -----------------------
       - name: Build Risk Score JSON
         run: |
           mkdir -p qualityrisk/out
@@ -125,12 +128,11 @@ jobs:
             --tests qualityrisk/out/test_report.json \
             --sonar qualityrisk/out/sonar.json \
             --out qualityrisk/out/risk_score.json
-      
 
       # -----------------------
-      # Evidence Pack
+      # Evidence Pack (base)
       # -----------------------
-      - name: Build Evidence Pack JSON
+      - name: Build Evidence Pack JSON (base)
         run: |
           mkdir -p qualityrisk/out
           python qualityrisk/scripts/build_evidence_pack.py \
@@ -144,6 +146,39 @@ jobs:
             --risk qualityrisk/out/risk_score.json \
             --out qualityrisk/out/evidence_pack.json
 
+      # -----------------------
+      # Policies / Golden Path
+      # -----------------------
+      - name: Evaluate Policy (Golden Path)
+        run: |
+          mkdir -p qualityrisk/out
+          python qualityrisk/scripts/policy_eval.py \
+            --policy qualityrisk/rules/policy_web_static_v1.yml \
+            --evidence qualityrisk/out/evidence_pack.json \
+            --risk qualityrisk/out/risk_score.json \
+            --out qualityrisk/out/policy_result.json
+
+      # -----------------------
+      # Evidence Pack (final con policy)
+      # -----------------------
+      - name: Build Evidence Pack JSON (final)
+        run: |
+          mkdir -p qualityrisk/out
+          python qualityrisk/scripts/build_evidence_pack.py \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --base "${{ github.event.pull_request.base.sha }}" \
+            --head "${{ github.event.pull_request.head.sha }}" \
+            --delta qualityrisk/out/delta.json \
+            --sonar qualityrisk/out/sonar.json \
+            --tests qualityrisk/out/test_report.json \
+            --risk qualityrisk/out/risk_score.json \
+            --policy-result qualityrisk/out/policy_result.json \
+            --out qualityrisk/out/evidence_pack.json
+
+      # -----------------------
+      # Upload artifacts
+      # -----------------------
       - name: Upload Evidence Pack (artifacts)
         uses: actions/upload-artifact@v4
         with:
