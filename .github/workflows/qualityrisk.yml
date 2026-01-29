@@ -1,0 +1,110 @@
+name: QualityRisk (Delta + Tests + Sonar Evidence)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualityrisk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: |
+          python -m pip install -U pip
+          if [ -f qualityrisk/requirements.txt ]; then
+            pip install -r qualityrisk/requirements.txt
+          else
+            pip install requests
+          fi
+
+      - name: Setup Node (only if package.json exists)
+        if: ${{ hashFiles('package.json') != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install deps (Node)
+        if: ${{ hashFiles('package.json') != '' }}
+        run: npm ci
+
+      - name: Run tests (capture JSON)
+        if: ${{ hashFiles('package.json') != '' }}
+        run: |
+          mkdir -p qualityrisk/out
+          python qualityrisk/scripts/run_cmd_capture.py \
+            --name "npm_test" \
+            --out qualityrisk/out/test_report.json \
+            -- npm test
+
+      - name: Ensure test report exists (when no Node project)
+        if: ${{ hashFiles('package.json') == '' }}
+        run: |
+          mkdir -p qualityrisk/out
+          python - << 'PY'
+          import json, pathlib
+          p = pathlib.Path("qualityrisk/out/test_report.json")
+          p.write_text(json.dumps({
+            "name": "npm_test",
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "No package.json found, tests skipped"
+          }, indent=2), encoding="utf-8")
+          PY
+
+      - name: SonarCloud scan
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ secrets.SONAR_ORG }}
+            -Dsonar.sources=.
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**,**/.venv/**,**/.tox/**,**/docs/**,**/sql/**,**/qualityrisk/out/**
+
+      - name: Build Evidence Pack JSON
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          mkdir -p qualityrisk/out
+
+          python qualityrisk/scripts/delta_analyzer.py \
+            --base "${{ github.event.pull_request.base.sha }}" \
+            --head "${{ github.event.pull_request.head.sha }}" \
+            --out qualityrisk/out/delta.json
+
+          python qualityrisk/scripts/sonar_fetch.py \
+            --project-key "${{ secrets.SONAR_PROJECT_KEY }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --out qualityrisk/out/sonar.json
+
+          python qualityrisk/scripts/build_evidence_pack.py \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --base "${{ github.event.pull_request.base.sha }}" \
+            --head "${{ github.event.pull_request.head.sha }}" \
+            --delta qualityrisk/out/delta.json \
+            --sonar qualityrisk/out/sonar.json \
+            --tests qualityrisk/out/test_report.json \
+            --out qualityrisk/out/evidence_pack.json
+
+      - name: Upload Evidence Pack (artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: qualityrisk-evidence
+          path: qualityrisk/out/*
