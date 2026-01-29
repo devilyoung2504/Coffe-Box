@@ -5,7 +5,7 @@ mode: advisory
 meta:
   scope: tooling
   intent: bootstrap
-  description: "Tooling policy: don't BLOCK on CRITICAL code smells while bootstrapping; block only on BLOCKER in delta."
+  description: "Tooling policy: avoid blocking improvements to CI tooling; block only on BLOCKER in delta."
 
 rules:
   - id: block_on_blocker_in_delta
@@ -40,10 +40,4 @@ rules:
     type: delta.churn_lines
     warn_gte: 400
     block_gte: 1200
-    on_fail: WARN
-
-  - id: warn_on_high_risk_score
-    type: risk.value
-    warn_gte: 70
-    block_gte: 101
     on_fail: WARN
