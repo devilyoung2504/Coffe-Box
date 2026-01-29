@@ -1,0 +1,10 @@
+# Dependencies
+node_modules/
+
+# QualityRisk outputs (artefactos generados por CI)
+qualityrisk/out/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
