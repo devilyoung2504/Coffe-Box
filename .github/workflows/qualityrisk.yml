@@ -30,7 +30,7 @@ jobs:
           if [ -f qualityrisk/requirements.txt ]; then
             pip install -r qualityrisk/requirements.txt
           else
-            pip install requests
+            pip install requests pyyaml
           fi
 
       # -----------------------
@@ -94,6 +94,21 @@ jobs:
             --out qualityrisk/out/delta.json
 
       # -----------------------
+      # Select policy by scope (web vs tooling)
+      # -----------------------
+      - name: Select Policy (scope-aware)
+        id: policy
+        run: |
+          mkdir -p qualityrisk/out
+          python qualityrisk/scripts/policy_select.py \
+            --delta qualityrisk/out/delta.json \
+            --web-policy qualityrisk/rules/policy_web_static_v1.yml \
+            --tooling-policy qualityrisk/rules/policy_tooling_qualityrisk_v1.yml \
+            --out qualityrisk/out/selected_policy.txt
+
+          echo "policy=$(cat qualityrisk/out/selected_policy.txt | tr -d '\n')" >> $GITHUB_OUTPUT
+
+      # -----------------------
       # Sonar (solo PRs no-fork)
       # -----------------------
       - name: SonarCloud scan
@@ -121,7 +136,6 @@ jobs:
             --delta qualityrisk/out/delta.json \
             --out qualityrisk/out/sonar.json
 
-      # Si no hay Sonar (fork), escribe sonar.json mínimo
       - name: Ensure sonar.json exists (when Sonar skipped)
         if: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
         run: |
@@ -147,7 +161,7 @@ jobs:
           PY
 
       # -----------------------
-      # Risk Score
+      # Risk Score (scope-aware via selected policy)
       # -----------------------
       - name: Build Risk Score JSON
         run: |
@@ -156,6 +170,7 @@ jobs:
             --delta qualityrisk/out/delta.json \
             --tests qualityrisk/out/test_report.json \
             --sonar qualityrisk/out/sonar.json \
+            --policy "${{ steps.policy.outputs.policy }}" \
             --out qualityrisk/out/risk_score.json
 
       # -----------------------
@@ -182,7 +197,7 @@ jobs:
         run: |
           mkdir -p qualityrisk/out
           python qualityrisk/scripts/policy_eval.py \
-            --policy qualityrisk/rules/policy_web_static_v1.yml \
+            --policy "${{ steps.policy.outputs.policy }}" \
             --evidence qualityrisk/out/evidence_pack.json \
             --risk qualityrisk/out/risk_score.json \
             --out qualityrisk/out/policy_result.json
@@ -230,6 +245,14 @@ jobs:
             --pr "${{ github.event.pull_request.number }}" \
             --evidence qualityrisk/out/evidence_pack.json \
             --out-md qualityrisk/out/qualityrisk_report.md
+
+      # -----------------------
+      # Enforce policy (solo si mode=enforcing)
+      # -----------------------
+      - name: Enforce policy (mode=enforcing only)
+        run: |
+          python qualityrisk/scripts/gate_enforce.py \
+            --policy-result qualityrisk/out/policy_result.json
 
       # -----------------------
       # Upload artifacts
