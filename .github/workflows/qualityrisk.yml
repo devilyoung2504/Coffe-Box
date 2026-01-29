@@ -30,7 +30,7 @@ jobs:
           if [ -f qualityrisk/requirements.txt ]; then
             pip install -r qualityrisk/requirements.txt
           else
-            pip install requests pyyaml
+            pip install requests
           fi
 
       # -----------------------
@@ -94,19 +94,18 @@ jobs:
             --out qualityrisk/out/delta.json
 
       # -----------------------
-      # Select policy by scope (web vs tooling)
+      # Policy select (web vs tooling)
       # -----------------------
-      - name: Select Policy (scope-aware)
-        id: policy
+      - name: Select Policy (web vs tooling)
+        id: select_policy
         run: |
           mkdir -p qualityrisk/out
           python qualityrisk/scripts/policy_select.py \
             --delta qualityrisk/out/delta.json \
             --web-policy qualityrisk/rules/policy_web_static_v1.yml \
-            --tooling-policy qualityrisk/rules/policy_tooling_qualityrisk_v1.yml \
+            --tooling-policy qualityrisk/rules/policy_qualityrisk_tooling_bootstrap_v1.yml \
             --out qualityrisk/out/selected_policy.txt
-
-          echo "policy=$(cat qualityrisk/out/selected_policy.txt | tr -d '\n')" >> $GITHUB_OUTPUT
+          echo "policy=$(cat qualityrisk/out/selected_policy.txt | tr -d '\n')" >> "$GITHUB_OUTPUT"
 
       # -----------------------
       # Sonar (solo PRs no-fork)
@@ -161,7 +160,7 @@ jobs:
           PY
 
       # -----------------------
-      # Risk Score (scope-aware via selected policy)
+      # Risk Score
       # -----------------------
       - name: Build Risk Score JSON
         run: |
@@ -170,7 +169,6 @@ jobs:
             --delta qualityrisk/out/delta.json \
             --tests qualityrisk/out/test_report.json \
             --sonar qualityrisk/out/sonar.json \
-            --policy "${{ steps.policy.outputs.policy }}" \
             --out qualityrisk/out/risk_score.json
 
       # -----------------------
@@ -197,10 +195,28 @@ jobs:
         run: |
           mkdir -p qualityrisk/out
           python qualityrisk/scripts/policy_eval.py \
-            --policy "${{ steps.policy.outputs.policy }}" \
+            --policy "${{ steps.select_policy.outputs.policy }}" \
             --evidence qualityrisk/out/evidence_pack.json \
             --risk qualityrisk/out/risk_score.json \
             --out qualityrisk/out/policy_result.json
+
+      # -----------------------
+      # Gate (solo falla si mode=enforcing y decision=BLOCK)
+      # -----------------------
+      - name: Enforce policy decision (mode=enforcing only)
+        run: |
+          python - << 'PY'
+          import json, sys, pathlib
+          p = pathlib.Path("qualityrisk/out/policy_result.json")
+          data = json.loads(p.read_text(encoding="utf-8"))
+          mode = (data.get("mode") or "advisory").lower()
+          decision = (data.get("decision") or "PASS").upper()
+          print(f"[gate] mode={mode} decision={decision}")
+          if mode == "enforcing" and decision == "BLOCK":
+            print("[gate] BLOCK in enforcing mode -> failing job")
+            sys.exit(1)
+          print("[gate] ok")
+          PY
 
       # -----------------------
       # Evidence Pack (final con policy)
@@ -245,14 +261,6 @@ jobs:
             --pr "${{ github.event.pull_request.number }}" \
             --evidence qualityrisk/out/evidence_pack.json \
             --out-md qualityrisk/out/qualityrisk_report.md
-
-      # -----------------------
-      # Enforce policy (solo si mode=enforcing)
-      # -----------------------
-      - name: Enforce policy (mode=enforcing only)
-        run: |
-          python qualityrisk/scripts/gate_enforce.py \
-            --policy-result qualityrisk/out/policy_result.json
 
       # -----------------------
       # Upload artifacts
