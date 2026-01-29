@@ -17,15 +17,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Python (runner scripts)
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install Python deps (requests)
+      - name: Install Python deps
         run: |
           python -m pip install -U pip
-          pip install requests
+          if [ -f qualityrisk/requirements.txt ]; then
+            pip install -r qualityrisk/requirements.txt
+          else
+            pip install requests
+          fi
 
       - name: Setup Node (only if package.json exists)
         if: ${{ hashFiles('package.json') != '' }}
@@ -47,6 +51,21 @@ jobs:
             --out qualityrisk/out/test_report.json \
             -- npm test
 
+      - name: Ensure test report exists (when no Node project)
+        if: ${{ hashFiles('package.json') == '' }}
+        run: |
+          mkdir -p qualityrisk/out
+          python - << 'PY'
+          import json, pathlib
+          p = pathlib.Path("qualityrisk/out/test_report.json")
+          p.write_text(json.dumps({
+            "name": "npm_test",
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "No package.json found, tests skipped"
+          }, indent=2), encoding="utf-8")
+          PY
+
       - name: SonarCloud scan
         uses: SonarSource/sonarqube-scan-action@v7
         env:
@@ -56,7 +75,7 @@ jobs:
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.organization=${{ secrets.SONAR_ORG }}
             -Dsonar.sources=.
-            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**,**/.venv/**,**/.tox/**,**/docs/**,**/sql/**
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**,**/.venv/**,**/.tox/**,**/docs/**,**/sql/**,**/qualityrisk/out/**
 
       - name: Build Evidence Pack JSON
         env:
