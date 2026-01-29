@@ -3,9 +3,26 @@ import argparse
 import json
 import os
 import requests
+import time
 from datetime import datetime, timezone
 
 SONAR_HOST = "https://sonarcloud.io"
+
+def wait_for_pr_analysis(token: str, project_key: str, pr: str, timeout_s: int = 60, sleep_s: int = 3):
+    deadline = time.time() + timeout_s
+    last = None
+    while time.time() < deadline:
+        qg = sonar_get(
+            "/api/qualitygates/project_status",
+            token,
+            {"projectKey": project_key, "pullRequest": pr},
+        )
+        status = (qg.get("projectStatus") or {}).get("status")
+        last = qg
+        if status and status != "NONE":
+            return qg
+        time.sleep(sleep_s)
+    return last
 
 def sonar_get(path: str, token: str, params: dict):
     url = f"{SONAR_HOST}{path}"
@@ -51,11 +68,7 @@ def main():
     if not token:
         raise SystemExit("Missing SONAR_TOKEN env var")
 
-    qg = sonar_get(
-        "/api/qualitygates/project_status",
-        token,
-        {"projectKey": args.project_key, "pullRequest": args.pr},
-    )
+    qg = qg = wait_for_pr_analysis(token, args.project_key, args.pr, timeout_s=90, sleep_s=3)
 
     issues = []
     page = 1
