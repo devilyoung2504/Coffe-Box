@@ -137,6 +137,21 @@ def eval_rule(evidence: dict, risk: dict, rule: dict):
         else:
             reason = f"Delta issues in {sevs}: {actual} <= {max_allowed}"
 
+    elif rtype == "delta.files_changed":
+        actual = get_signal(evidence, risk, "delta.files_changed")
+        warn_gte = int(rule.get("warn_gte", 10**9))
+        block_gte = int(rule.get("block_gte", 10**9))
+
+        if actual >= block_gte:
+            status = "BLOCK"
+            reason = f"Too many files changed ({actual} >= {block_gte})"
+        elif actual >= warn_gte:
+            status = rule.get("on_fail", "WARN")
+            reason = f"Many files changed ({actual} >= {warn_gte})"
+        else:
+            reason = f"Files changed OK ({actual})"
+        
+
     else:
         status = "WARN"
         reason = f"Unknown rule type: {rtype}"
