@@ -2,6 +2,14 @@ name: QualityRisk (Delta + Tests + Sonar Evidence)
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "qualityrisk/**"
+      - ".github/workflows/qualityrisk.yml"
+      - "**/*.html"
+      - "**/*.css"
+      - "**/*.js"
+
 
 permissions:
   contents: read
