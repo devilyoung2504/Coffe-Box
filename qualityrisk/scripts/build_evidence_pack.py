@@ -2,7 +2,6 @@ import argparse
 import json
 from datetime import datetime, timezone
 
-
 def load(path: str):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -16,6 +15,7 @@ def main():
     ap.add_argument("--delta", required=True)
     ap.add_argument("--sonar", required=True)
     ap.add_argument("--tests", required=True)
+    ap.add_argument("--risk", required=False)
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
@@ -26,15 +26,18 @@ def main():
             "base_sha": args.base,
             "head_sha": args.head,
             "generated_at": datetime.now(timezone.utc).isoformat(),
+            "format_version": "0.2.0",
         },
         "delta": load(args.delta),
         "tests": load(args.tests),
         "sonar": load(args.sonar),
     }
 
+    if args.risk:
+        payload["risk"] = load(args.risk)
+
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, ensure_ascii=False)
-
 
 if __name__ == "__main__":
     main()

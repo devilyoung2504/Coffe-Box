@@ -117,6 +117,16 @@ jobs:
             --delta qualityrisk/out/delta.json \
             --out qualityrisk/out/sonar.json
 
+      - name: Build Risk Score JSON
+        run: |
+          mkdir -p qualityrisk/out
+          python qualityrisk/scripts/risk_score.py \
+            --delta qualityrisk/out/delta.json \
+            --tests qualityrisk/out/test_report.json \
+            --sonar qualityrisk/out/sonar.json \
+            --out qualityrisk/out/risk_score.json
+      
+
       # -----------------------
       # Evidence Pack
       # -----------------------
@@ -131,6 +141,7 @@ jobs:
             --delta qualityrisk/out/delta.json \
             --sonar qualityrisk/out/sonar.json \
             --tests qualityrisk/out/test_report.json \
+            --risk qualityrisk/out/risk_score.json \
             --out qualityrisk/out/evidence_pack.json
 
       - name: Upload Evidence Pack (artifacts)
